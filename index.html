@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Tra Cứu Dữ Liệu</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        /* Thiết kế Responsive Cơ bản */
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background-color: #f8f8f8; 
+            line-height: 1.6;
+        }
+        h1 { 
+            color: #1a73e8; 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        #search-input { 
+            width: 100%; 
+            padding: 14px; 
+            margin-bottom: 30px; 
+            box-sizing: border-box; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            font-size: 17px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        #data-container { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 20px; 
+        }
+        .data-card { 
+            background-color: white; 
+            border: 1px solid #e0e0e0; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            transition: transform 0.2s;
+        }
+        .data-card:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        }
+        .data-card h3 { 
+            margin-top: 0; 
+            color: #333; 
+            font-size: 1.2em;
+        }
+        .data-card p { 
+            font-size: 0.95em; 
+            margin-bottom: 5px; 
+            color: #555;
+        }
+        .data-card strong {
+            color: #1a73e8;
+        }
+        .data-card a { 
+            color: #007bff; 
+            text-decoration: none; 
+            word-break: break-all;
+        }
+        .data-card a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔎 Tra Cứu Dữ Liệu Liên Kết</h1>
+    <input type="text" id="search-input" placeholder="Nhập từ khóa (Nội dung, Link, Ghi chú) để tìm kiếm nhanh..." autocomplete="off">
+    <div id="data-container">
+        <p>Đang tải dữ liệu...</p>
+    </div>
+
+    <script>
+        const CSV_FILE_PATH = 'data.csv'; // Tên file CSV đã tải lên GitHub
+        let allData = [];
+        const container = document.getElementById('data-container');
+        const searchInput = document.getElementById('search-input');
+
+        // Hàm Tải và Phân tích cú pháp (Parse) CSV
+        function loadCSV() {
+            Papa.parse(CSV_FILE_PATH, {
+                download: true, // Cho phép tải file từ đường dẫn (trên GitHub Pages)
+                header: true,   // Sử dụng hàng đầu tiên làm tiêu đề cột
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // Papa Parse đọc tên cột chính xác theo tiêu đề trong file CSV (STT, Nội dung, Link, Ghi chú)
+                    // Lọc bỏ các hàng không có nội dung chính
+                    allData = results.data.filter(item => item['Nội dung'] && item['Nội dung'].trim() !== '');
+                    displayData(allData);
+                },
+                error: function(error) {
+                    console.error("Lỗi Papa Parse:", error);
+                    container.innerHTML = `<p style="color: red;">⚠️ Lỗi khi tải file data.csv. Vui lòng kiểm tra file đã được tải lên Repository chưa.</p>`;
+                }
+            });
+        }
+
+        // Hàm Hiển thị Dữ liệu lên giao diện
+        function displayData(data) {
+            container.innerHTML = '';
+            if (data.length === 0) {
+                container.innerHTML = '<p>Không tìm thấy kết quả nào phù hợp.</p>';
+                return;
+            }
+
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.innerHTML = `
+                    <h3>${item['Nội dung'] || '---'}</h3>
+                    <p><strong>STT:</strong> ${item['STT'] || ''}</p>
+                    <p><strong>Liên kết:</strong> <a href="${item['Link']}" target="_blank">${item['Link'] || ''}</a></p>
+                    <p><strong>Ghi chú:</strong> ${item['Ghi chú'] || 'Không có'}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Hàm Xử lý Tra Cứu (Tìm kiếm)
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase().trim();
+
+            if (!searchTerm) {
+                displayData(allData); // Nếu trống thì hiển thị tất cả
+                return;
+            }
+
+            // Lọc dữ liệu: tìm kiếm trong 3 cột chính
+            const filteredData = allData.filter(item => {
+                // Đảm bảo dữ liệu là chuỗi và chuyển về chữ thường để tìm kiếm không phân biệt chữ hoa/thường
+                const noiDung = String(item['Nội dung'] || '').toLowerCase();
+                const link = String(item['Link'] || '').toLowerCase();
+                const ghiChu = String(item['Ghi chú'] || '').toLowerCase();
+                
+                return noiDung.includes(searchTerm) || 
+                       link.includes(searchTerm) || 
+                       ghiChu.includes(searchTerm);
+            });
+
+            displayData(filteredData);
+        });
+
+        // Khởi động
+        loadCSV();
+    </script>
+</body>
+</html>
